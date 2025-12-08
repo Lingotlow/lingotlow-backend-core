@@ -1,7 +1,54 @@
-/target
-/.idea
-*.iml
+# Maven
+/target/
+/pom.xml.tag
+/pom.xml.releaseBackup
+/pom.xml.versionsBackup
+/logs/
+/dependency-reduced-pom.xml
+/buildNumber.properties
+/.mvn/wrapper/maven-wrapper.jar
+
+# IntelliJ IDEA
+/.idea/
+/*.iml
+/out/
+/*.iws
+/.idea_modules/
+/*.ipr
+
+# Eclipse
+/.settings/
+/*.classpath
+/*.project
+
+# VS Code
+.vscode/
+
+# Logs
+*.log
+logs/
+
+# Spring Boot
+spring.log
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Docker
+/docker/data/
+/docker/*.env
+
+# Java
 *.class
-/.mvn
-/logs
-/.settings
+*.jar
+*.war
+*.ear
+
+# Others
+*.swp
+*~
+
+# Backup files
+*.bak
+*.tmp

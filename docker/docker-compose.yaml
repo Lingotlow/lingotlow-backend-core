@@ -1,0 +1,47 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: lingotlow_postgres
+    restart: unless-stopped
+    env_file:
+      - ./env/postgres.env
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    networks:
+      - lingotlow-network
+
+  redis:
+    image: redis:7
+    container_name: lingotlow_redis
+    restart: unless-stopped
+    env_file:
+      - ./env/redis.env
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - ./data/redis:/data
+    networks:
+      - lingotlow-network
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: lingotlow_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: dev@lingotlow.com
+      PGADMIN_DEFAULT_PASSWORD: PgAdmin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - lingotlow-network
+
+networks:
+  lingotlow-network:
+    driver: bridge
