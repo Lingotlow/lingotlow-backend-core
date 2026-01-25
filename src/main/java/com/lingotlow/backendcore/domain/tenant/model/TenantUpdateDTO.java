@@ -3,8 +3,7 @@ package com.lingotlow.backendcore.domain.tenant.model;
 import lombok.Data;
 
 @Data
-public class TenantRequestDTO {
-  private String tenantKey;
+public class TenantUpdateDTO {
   private String name;
   private String config;
 }
