@@ -49,7 +49,11 @@ public class TenantService {
         throw new ResourceAlreadyExistsException("Tenant", request.getTenantKey());
       }
 
-      TenantEntity created = tenantRepository.save(entityMapper.mapToCreateEntity(request));
+      TenantEntity entity = entityMapper.mapToCreateEntity(request);
+      entity.setCreatedAt(OffsetDateTime.now());
+      entity.setUpdatedAt(OffsetDateTime.now());
+      
+      TenantEntity created = tenantRepository.save(entity);
       log.info(
           "Tenant created successfully with ID: {} and key: {}",
           created.getId(),

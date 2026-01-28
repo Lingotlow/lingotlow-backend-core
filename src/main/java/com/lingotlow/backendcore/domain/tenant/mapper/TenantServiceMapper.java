@@ -14,8 +14,8 @@ public abstract class TenantServiceMapper {
   public static final TenantServiceMapper INSTANCE = Mappers.getMapper(TenantServiceMapper.class);
 
   @Mapping(target = "id", ignore = true)
-  @Mapping(target = "createdAt", expression = "java(java.time.OffsetDateTime.now())")
-  @Mapping(target = "updatedAt", expression = "java(java.time.OffsetDateTime.now())")
+  @Mapping(target = "createdAt", ignore = true)
+  @Mapping(target = "updatedAt", ignore = true)
   public abstract TenantEntity mapToCreateEntity(TenantRequestDTO request);
 
   @Mapping(target = "id", ignore = true)
