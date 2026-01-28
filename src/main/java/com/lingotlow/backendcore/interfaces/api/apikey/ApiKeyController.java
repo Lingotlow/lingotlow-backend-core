@@ -2,6 +2,7 @@ package com.lingotlow.backendcore.interfaces.api.apikey;
 
 import com.lingotlow.backendcore.domain.apikey.ApiKeyService;
 import com.lingotlow.backendcore.domain.apikey.model.ApiKeyResponseDTO;
+import com.lingotlow.backendcore.domain.tenant.TenantService;
 import com.lingotlow.backendcore.interfaces.api.apikey.mapper.ApiKeyControllerMapper;
 import com.lingotlow.backendcore.interfaces.api.apikey.model.ApiKeyResponse;
 import com.lingotlow.backendcore.interfaces.api.apikey.model.CreateApiKeyResponse;
@@ -23,16 +24,16 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/tenants/{tenantKey}/apikeys")
+@RequestMapping("/api/tenants/{tenantKey}/api-keys")
 @RequiredArgsConstructor
 public class ApiKeyController {
 
     private final ApiKeyService apiKeyService;
     private final ApiKeyControllerMapper mapper;
+    private final TenantService tenantService;
 
-    private UUID resolveTenantId(String tenantKey) { //TODO controller do TenantId para buscar o Tenant na BD
-        if ("demo".equals(tenantKey)) return UUID.fromString("00000000-0000-0000-0000-000000000001");
-        throw new RuntimeException("Tenant não encontrado");
+    private UUID resolveTenantId(String tenantKey) {
+        return tenantService.getTenantByTenantKey(tenantKey).getId();
     }
 
     @Operation(summary = "Create or rotate API Key for tenant", description = "Creates a new API key for the specified tenant. Requires ADMIN role.")
