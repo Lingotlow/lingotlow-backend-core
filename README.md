@@ -2,122 +2,364 @@
 
 ## Overview
 
-Este projeto backend-core do Lingotlow usa Java 21 + Spring Boot e depende de serviços externos para rodar localmente, que levantamos com Docker Compose.
+This Lingotlow backend-core project uses Java 21 + Spring Boot and depends on external services to run locally, which we start with Docker Compose.
 
-## Stack das Dependências Levantadas
+## Dependencies Stack
 
 - PostgreSQL 16
 - Redis 7
-- PgAdmin 4 (interface para administrar o PostgreSQL)
-- Rede Docker personalizada (lingotlow-network)
+- PgAdmin 4 (interface to manage PostgreSQL)
+- Custom Docker network (lingotlow-network)
 
-O backend Spring Boot será executado localmente via IntelliJ.
+The Spring Boot backend will be executed locally via IntelliJ.
 
 ---
 
-## Pré-requisitos para Mac e Linux (LMDE 6 - Debian)
+## Prerequisites for Mac and Linux (LMDE 6 - Debian)
 
-### 1. Instalar Docker e Docker Compose
+### 1. Install Docker and Docker Compose
 
-### No Linux LMDE 6 (Debian base):
-##### Atualizar os pacotes
+### On Linux LMDE 6 (Debian based):
+##### Update packages
     sudo apt update && sudo apt upgrade -y
 
-##### Instalar pacotes necessários para adicionar repositórios
+##### Install necessary packages to add repositories
     sudo apt install -y ca-certificates curl gnupg lsb-release
 
-##### Criar chave para o repositório oficial Docker
+##### Create key for official Docker repository
     sudo mkdir -p /etc/apt/keyrings
+
+##### Add Docker GPG key
     curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 
-##### Adicionar o repositório Docker no sources.list
-    echo \
-    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
-    $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+##### Add Docker repository
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-##### Atualizar lista de pacotes e instalar Docker Engine e Docker Compose plugin
+##### Install Docker
     sudo apt update
     sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
-##### Verificar instalação
-    docker --version
-    docker compose version
-
-##### Iniciar o serviço Docker (se não estiver rodando)
+##### Start and enable Docker
     sudo systemctl start docker
     sudo systemctl enable docker
 
-##### Adicionar seu usuário ao grupo docker para não precisar usar sudo
+##### Add user to docker group (to avoid sudo)
     sudo usermod -aG docker $USER
 
-##### Após isso, faça logout/login ou reinicie o sistema para aplicar
+##### Apply group changes (logout and login or run)
+    newgrp docker
 
-### No macOS:
+### On Mac:
+##### Install Docker Desktop
+    brew install --cask docker
 
-#### Instale o Docker Desktop para Mac via https://docs.docker.com/desktop/install/mac-install/
-#### Siga o instalador e inicie o Docker Desktop
+---
 
-#### Verifique no terminal:
-    docker --version
-    docker compose version
+## Quick Start
 
-#### Como Rodar o Docker Compose
-#### No diretório do projeto, onde está o arquivo docker-compose.yaml, execute:
-    docker compose up -d
+### 1. Start Dependencies
+```bash
+# Start PostgreSQL, Redis, and PgAdmin
+docker-compose up -d
 
-#### Isso vai criar e iniciar os containers de:
+# Check services status
+docker-compose ps
+```
 
-- PostgreSQL
-- Redis
-- PgAdmin
-- Rede docker "lingotlow-network"
+### 2. Database Setup
+```bash
+# Access PostgreSQL
+docker exec -it lingotlow-postgres psql -U lingotlow -d lingotlow_dev
 
-## Como Testar os Serviços
+# Or use PgAdmin at http://localhost:5050
+# Server: postgres
+# Username: lingotlow
+# Password: lingotlow_dev
+```
 
-### Se não tiver instalado redis-cli:
-#### No Linux Debian/LMDE:
-    sudo apt install redis-tools
+### 3. Run Application
+```bash
+# Using Maven
+./mvnw spring-boot:run -Dspring.profiles.active=local
 
-#### No macOS (se usar Homebrew):
-    brew install redis
+# Or using IntelliJ IDE
+# - Open the project
+# - Run BackendCoreApplication.java
+```
 
-#### Teste:
-    redis-cli -h localhost ping
-    # Deve responder PONG
+### 4. Access Endpoints
+```bash
+# Health check
+curl http://localhost:8080/actuator/health
 
-### Se não tiver instalado psql:
-#### No Linux Debian/LMDE:
-    sudo apt install postgresql-client
+# Swagger UI
+open http://localhost:8080/swagger-ui.html
 
-#### No macOS:
-    brew install libpq
-    brew link --force libpq
+# API Documentation
+open http://localhost:8080/v3/api-docs
+```
 
-#### Teste conexão:
-    psql -h localhost -p 5432 -U lingotlow -d lingotlow_dev
-    # Senha configurada no docker-compose.yaml
+---
 
-### Acessar PgAdmin:
-    Acesse pelo navegador http://localhost:5050
-    Use o e-mail e senha configurados nas variáveis de ambiente no docker-compose.yaml (exemplo: admin@example.com)
-    Configure uma nova conexão para o banco PostgreSQL usando host postgres, usuário e senha conforme docker-compose.yaml
+## Project Structure
 
-### Caso precise parar os containers:
-    docker compose down
+```
+src/
+├── main/
+│   ├── java/com/lingotlow/backendcore/
+│   │   ├── domain/           # Domain layer (DDD)
+│   │   │   ├── tenant/      # Tenant domain logic
+│   │   │   ├── event/       # Event domain logic
+│   │   │   └── apikey/      # API Key domain logic
+│   │   ├── infrastructure/   # Infrastructure layer
+│   │   │   ├── repository/  # JPA repositories
+│   │   │   ├── logging/     # Audit logging
+│   │   │   └── metrics/     # Metrics collection
+│   │   └── interfaces/      # Interface layer
+│   │       └── api/         # REST controllers
+│   └── resources/
+│       ├── application.yml          # Main configuration
+│       ├── application-local.yml    # Local development
+│       └── db/migration/            # Flyway migrations
+└── test/                           # Test suite
+    ├── java/                       # Unit and integration tests
+    └── resources/                  # Test configurations
+```
 
-### Se fizer alterações no docker-compose.yaml, rode:
-    docker compose up -d --build
+---
 
-### Verifique logs com:
-    docker compose logs -f
+## Configuration
 
-### Próximos passos
-    Rodar o backend core no IntelliJ
-    Configurar application.yaml para conectar no PostgreSQL e Redis locais
+### Application Profiles
 
-### Em caso de dúvidas, consulte a documentação do Docker:
-#### Docker Compose: https://docs.docker.com/compose/
-#### Docker para Debian: https://docs.docker.com/engine/install/debian/
-#### Docker para macOS: https://docs.docker.com/docker-for-mac/
+- **local**: Local development with Docker services
+- **default**: Production/staging configuration
 
-#### Obrigado por usar o Lingotlow!
+### Database Configuration
+```yaml
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/lingotlow_dev
+    username: lingotlow
+    password: lingotlow_dev
+  
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+```
+
+### Redis Configuration
+```yaml
+spring:
+  redis:
+    host: localhost
+    port: 6379
+```
+
+---
+
+## API Endpoints
+
+### Tenant Management
+- `GET /api/tenants` - List all tenants
+- `POST /api/tenants` - Create new tenant
+- `GET /api/tenants/{tenantKey}` - Get tenant details
+- `PUT /api/tenants/{tenantKey}` - Update tenant
+- `DELETE /api/tenants/{tenantKey}` - Delete tenant
+
+### API Key Management
+- `POST /api/api-keys/{tenantKey}` - Create API key
+- `GET /api/api-keys/{tenantKey}` - List API keys
+
+### Event Ingestion
+- `POST /api/ingest/{tenantKey}` - Ingest event
+
+### Health & Monitoring
+- `GET /actuator/health` - Application health
+- `GET /actuator/metrics` - Application metrics
+- `GET /actuator/prometheus` - Prometheus metrics
+
+---
+
+## Development
+
+### Code Style
+- Java 21 features
+- Domain-Driven Design (DDD)
+- Clean Architecture principles
+- SOLID principles
+
+### Testing
+```bash
+# Run all tests
+./mvnw test
+
+# Run specific test class
+./mvnw test -Dtest=EventServiceTest
+
+# Run integration tests
+./mvnw test -Dtest=EventControllerIntegrationTest
+```
+
+### Database Migrations
+```bash
+# Check migration status
+./mvnw flyway:info
+
+# Run pending migrations
+./mvnw flyway:migrate
+
+# Clean database (development only)
+./mvnw flyway:clean
+```
+
+---
+
+## Environment Variables
+
+### Optional Environment Variables
+```bash
+# Override default configuration
+export SPRING_PROFILES_ACTIVE=local
+export SERVER_PORT=8080
+export DB_HOST=localhost
+export DB_PORT=5432
+export DB_NAME=lingotlow_dev
+export DB_USER=lingotlow
+export DB_PASSWORD=lingotlow_dev
+export REDIS_HOST=localhost
+export REDIS_PORT=6379
+```
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+#### Docker Permission Denied
+```bash
+# Fix Docker permissions
+sudo usermod -aG docker $USER
+newgrp docker
+```
+
+#### Port Already in Use
+```bash
+# Check what's using port 5432
+lsof -i :5432
+
+# Kill process if needed
+kill -9 <PID>
+```
+
+#### Database Connection Failed
+```bash
+# Check PostgreSQL container
+docker logs lingotlow-postgres
+
+# Restart services
+docker-compose restart
+```
+
+#### Application Won't Start
+```bash
+# Check application logs
+./mvnw spring-boot:run -Dspring.profiles.active=local -Dlogging.level.root=DEBUG
+
+# Clean and rebuild
+./mvnw clean install
+```
+
+---
+
+## Monitoring & Observability
+
+### Health Endpoints
+- Application health: `/actuator/health`
+- Database health: Included in main health check
+- Redis health: Included in main health check
+
+### Metrics
+- JVM metrics: `/actuator/metrics/jvm.*`
+- HTTP metrics: `/actuator/metrics/http.server.requests`
+- Database metrics: `/actuator/metrics/data.*`
+
+### Logging
+- Application logs: Console output
+- Audit logs: Structured JSON format
+- Database logs: Docker container logs
+
+---
+
+## Security
+
+### Authentication
+- API Key based authentication
+- JWT tokens for internal services
+- Tenant-based access control
+
+### Data Protection
+- Passwords encrypted in database
+- API keys hashed
+- HTTPS in production
+
+---
+
+## Performance
+
+### Database Optimization
+- Indexed columns for frequent queries
+- Connection pooling configured
+- Flyway migrations for schema management
+
+### Caching
+- Redis for session management
+- Application-level caching for frequent data
+
+### Monitoring
+- Response time tracking
+- Error rate monitoring
+- Resource usage metrics
+
+---
+
+## Contributing
+
+1. Fork the repository
+2. Create feature branch
+3. Make your changes
+4. Add tests
+5. Run all tests
+6. Submit pull request
+
+### Code Review Checklist
+- [ ] Code follows project style
+- [ ] Tests are included
+- [ ] Documentation updated
+- [ ] No breaking changes
+- [ ] Security considerations addressed
+
+---
+
+## License
+
+This project is proprietary software of Lingotlow.
+
+---
+
+## Support
+
+For technical support:
+- Create issue in repository
+- Contact development team
+- Check documentation first
+
+---
+
+**Happy Coding! 🚀**

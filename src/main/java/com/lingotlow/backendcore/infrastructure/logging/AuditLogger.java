@@ -81,4 +81,31 @@ public class AuditLogger {
       log.error("Failed to log audit event", e);
     }
   }
+
+  public void logEventCreated(String tenantKey, String requestId, String sourceIp, Object eventData) {
+    try {
+      Map<String, Object> auditEvent =
+          Map.of(
+              "timestamp",
+              OffsetDateTime.now(),
+              "eventType",
+              "EVENT_CREATED",
+              "operation",
+              "CREATE",
+              "tenantKey",
+              tenantKey,
+              "requestId",
+              requestId,
+              "sourceIp",
+              sourceIp,
+              "details",
+              eventData != null ? eventData : Map.of(),
+              "service",
+              "event-service");
+
+      log.info("AUDIT: {}", objectMapper.writeValueAsString(auditEvent));
+    } catch (Exception e) {
+      log.error("Failed to log audit event", e);
+    }
+  }
 }
