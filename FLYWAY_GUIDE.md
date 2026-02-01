@@ -13,6 +13,108 @@ Flyway is a **database versioning tool** that evolves your schema in a **control
 
 ---
 
+## 🏗️ **Architecture Overview: PostgreSQL + JPA + Flyway + Redis**
+
+### 📊 **Data Layer Architecture**
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   API Layer     │    │  Business Logic  │    │  Data Layer     │
+│                 │    │                  │    │                 │
+│ REST Endpoints  │───▶│   EventService   │───▶│ PostgreSQL      │
+│                 │    │   TenantService  │    │ (Primary Store) │
+│ Validation      │    │   ApiKeyService  │    │                 │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+                                                       │
+                                                       ▼
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│  Queue Layer    │    │  Processing      │    │  Schema Layer   │
+│                 │    │                  │    │                 │
+│ Redis Streams   │◀───│ QueueFailure     │    │ Flyway          │
+│ (Upstash)       │    │ Handler          │    │ (Versioning)    │
+│ Async Processing│    │ Retry Logic      │    │                 │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+```
+
+### 🎯 **Purpose of Each Component**
+
+#### **📊 PostgreSQL + JPA (Primary Data Store)**
+- **PostgreSQL**: Banco de dados principal onde os eventos são **persistidos permanentemente**
+- **JPA/Hibernate**: ORM para mapear objetos Java para tabelas do PostgreSQL
+- **Purpose**: 
+  - ✅ **Durabilidade**: Eventos nunca perdem
+  - ✅ **Consistência**: ACID transactions
+  - ✅ **Queries**: Consultas complexas, relatórios
+  - ✅ **Auditoria**: Histórico completo
+
+#### **🔄 Flyway (Schema Management)**
+- **Purpose**: Controle de versão do schema do banco (migrations)
+- **Benefits**:
+  - ✅ **Version Control**: Cada mudança tem versão
+  - ✅ **Safety**: Sem mudanças inesperadas
+  - ✅ **Consistency**: Mesmo schema em todos ambientes
+  - ✅ **Rollback**: Capacidade de reverter mudanças
+
+#### **🚀 Redis Streams (Async Processing)**
+- **Redis Streams**: Fila de mensagens para **processamento assíncrono**
+- **Upstash**: Serviço gerenciado de Redis na nuvem
+- **Purpose**:
+  - ✅ **Performance**: Não bloqueia API
+  - ✅ **Escalabilidade**: Processa milhares de eventos/segundo
+  - ✅ **Desacoplamento**: API independe do processamento
+  - ✅ **Retry**: Reprocessamento automático em falhas
+
+### 📋 **Complete Data Flow**
+
+```
+1. API recebe evento
+   ↓
+2. JPA salva no PostgreSQL (garantia de persistência)
+   ↓
+3. Flyway garante schema consistente
+   ↓
+4. Redis Streams enfileira para processamento async
+   ↓
+5. Consumer processa da fila (analytics, notificações, etc)
+```
+
+### 🎖️ **Benefits of This Architecture**
+
+1. **Resiliência**: Se fila falhar, evento ainda está salvo no PostgreSQL
+2. **Performance**: API responde rápido (200ms vs 2s)
+3. **Escalabilidade**: Processamento independente do armazenamento
+4. **Monitoramento**: Métricas de ambos os lados (banco + fila)
+5. **Flexibilidade**: Múltiples consumers da mesma fila
+6. **Consistência**: Schema controlado por Flyway em todos ambientes
+
+### 🔄 **Why All Three Components?**
+
+#### **Without Redis Streams:**
+```
+POST /events → Salva no banco → Processa analytics → Responde (2s)
+```
+
+#### **With Redis Streams:**
+```
+POST /events → Salva no banco → Enfileira → Responde (200ms)
+                                    ↓
+                              Consumer processa analytics (background)
+```
+
+#### **Without Flyway:**
+- Schema descontrolado
+- Mudanças manuais e arriscadas
+- Diferenças entre ambientes
+- Impossível rollback
+
+#### **With Flyway:**
+- Schema versionado e controlado
+- Mudanças seguras e rastreáveis
+- Consistência total entre ambientes
+- Rollback seguro quando necessário
+
+---
+
 ## 🏗️ **How it Works in Lingotlow**
 
 ### **File Structure:**
@@ -455,6 +557,259 @@ WHERE tablename = 'events';
 | **Staging** | Flyway: `true`, DDL: `validate` | Flyway: `true`, DDL: `validate` |
 | **Production** | Flyway: `true`, DDL: `validate` | Flyway: `true`, DDL: `validate` |
 
+### **📚 Component Integration Summary**
+
+#### **🎯 How They Work Together:**
+
+1. **PostgreSQL + JPA**:
+   - Armazena dados permanentemente
+   - Garante ACID transactions
+   - Permite queries complexas
+
+2. **Flyway**:
+   - Controla evolução do schema
+   - Garante consistência entre ambientes
+   - Permite rollback seguro
+
+3. **Redis Streams**:
+   - Processa eventos assincronamente
+   - Não bloqueia a API
+   - Permite escalabilidade horizontal
+
+#### **🔧 Configuration Integration:**
+```yaml
+spring:
+  # Database (PostgreSQL + JPA)
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/lingotlow_dev}
+    username: ${DATABASE_USERNAME:lingotlow}
+    password: ${DATABASE_PASSWORD:lingotlow_dev}
+    driver-class-name: org.postgresql.Driver
+  
+  # Schema Management (Flyway)
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  
+  # ORM (JPA/Hibernate)
+  jpa:
+    hibernate:
+      ddl-auto: validate  # Only validates, doesn't alter
+  
+  # Async Processing (Redis)
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+```
+
 ---
+
+## 🔌 **Understanding Datasource Configuration**
+
+### **O que é Datasource?**
+
+**Datasource** é a **configuração de conexão com o banco de dados** no Spring Boot! É o objeto que gerencia:
+
+- **Conexão** com o banco de dados
+- **Pool de conexões** (reaproveitamento)
+- **Credenciais** (usuário, senha, URL)
+- **Configurações** (timeout, driver, etc.)
+
+### **🏗️ Como funciona na arquitetura:**
+
+```
+┌─────────────────┐
+│   Spring Boot   │
+│                 │
+│ ┌─────────────┐ │
+│ │ Datasource  │ │ ← Configura conexão com PostgreSQL
+│ │ (Pool)      │ │
+│ └─────────────┘ │
+│        │        │
+│        ▼        │
+│ ┌─────────────┐ │
+│ │ PostgreSQL  │ │ ← Banco de dados real
+│ │ Server      │ │
+│ └─────────────┘ │
+└─────────────────┘
+```
+
+### **🎯 Para que serve cada parte do Datasource:**
+
+#### **`url`**
+- **Endereço completo** do banco de dados
+- **Formato**: `jdbc:postgresql://host:port/database`
+- **Exemplo**: `jdbc:postgresql://localhost:5432/lingotlow_dev`
+
+#### **`username` & `password`**
+- **Credenciais de acesso** ao PostgreSQL
+- **Produção**: Usa variáveis de ambiente por segurança
+- **Desenvolvimento**: Pode usar credenciais locais
+
+#### **`driver-class-name`**
+- **Classe JDBC** que sabe "conversar" com PostgreSQL
+- `org.postgresql.Driver` = "Tradutor" Java ↔ PostgreSQL
+- **Spring Boot**: Detecta automaticamente na maioria dos casos
+
+### **🔄 Integração do Datasource com os Componentes:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Spring Boot Application                  │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐     │
+│  │   JPA/Hibernate │    │    Flyway   │    │ Repositories │     │
+│  │             │    │             │    │             │     │
+│  │ EventEntity │    │ Migrations  │    │ EventRepo   │     │
+│  │ TenantEntity│    │ V1__Create  │    │ TenantRepo  │     │
+│  └─────────────┘    └─────────────┘    └─────────────┘     │
+│         │                   │                   │           │
+│         └───────────────────┼───────────────────┘           │
+│                             │                               │
+│                    ┌─────────────┐                         │
+│                    │ Datasource   │ ← Gerencia todas as     │
+│                    │ (Pool)       │   conexões              │
+│                    └─────────────┘                         │
+│                             │                               │
+│                             ▼                               │
+│                    ┌─────────────┐                         │
+│                    │ PostgreSQL  │ ← Banco de dados        │
+│                    │ Database    │   persistente            │
+│                    └─────────────┘                         │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### **📋 Exemplo Prático de Uso:**
+
+#### **Sem Datasource configurado:**
+```bash
+❌ Application startup failed
+❌ "Could not determine a suitable DataSource"
+❌ "No database connection available"
+```
+
+#### **Com Datasource configurado:**
+```bash
+✅ Starting application...
+✅ HikariPool-1 - Starting...
+✅ HikariPool-1 - Start completed.
+✅ Database connection established!
+✅ JPA entities can be saved
+✅ Flyway migrations can run
+✅ Everything working! 🚀
+```
+
+### **🔧 Configurações Avançadas do Datasource:**
+
+```yaml
+spring:
+  datasource:
+    # Básico
+    url: jdbc:postgresql://localhost:5432/lingotlow_dev
+    username: ${DATABASE_USERNAME:lingotlow}
+    password: ${DATABASE_PASSWORD:lingotlow_dev}
+    driver-class-name: org.postgresql.Driver
+    
+    # Pool de Conexões (HikariCP - padrão Spring Boot)
+    hikari:
+      maximum-pool-size: 20          # Máximo de conexões
+      minimum-idle: 5                # Mínimo de conexões ociosas
+      idle-timeout: 30000           # Tempo ocioso antes de fechar (ms)
+      max-lifetime: 1800000         # Tempo máximo de vida da conexão (ms)
+      connection-timeout: 20000     # Timeout para obter conexão (ms)
+      leak-detection-threshold: 60000 # Detecta connection leaks
+      
+    # Validação
+    validation-timeout: 3000         # Timeout para validação
+    connection-test-query: "SELECT 1" # Query para testar conexão
+```
+
+### **🎖️ Benefícios do Pool de Conexões:**
+
+| Benefício | Descrição |
+|-----------|-----------|
+| **Performance** | Reaproveita conexões existentes |
+| **Escalabilidade** | Limita número máximo de conexões |
+| **Resiliência** | Reconecta automaticamente em falhas |
+| **Monitoramento** | Métricas de uso do pool |
+| **Timeouts** | Evita esperas infinitas |
+
+### **🚀 Boas Práticas:**
+
+#### **1. Variáveis de Ambiente (Produção):**
+```bash
+export DATABASE_URL="jdbc://prod-db:5432/lingotlow_prod"
+export DATABASE_USERNAME="app_user"
+export DATABASE_PASSWORD="secure_password"
+```
+
+#### **2. Configuração por Ambiente:**
+```yaml
+# application-local.yml
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/lingotlow_dev
+    username: lingotlow
+    password: lingotlow_dev
+
+# application-prod.yml  
+spring:
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+```
+
+#### **3. Monitoramento:**
+```yaml
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
+  metrics:
+    enable:
+      hikaricp: true  # Métricas do pool de conexões
+```
+
+### **🔍 Troubleshooting Comum:**
+
+#### **Problema: Connection Refused**
+```bash
+# Verifique se PostgreSQL está rodando
+docker ps | grep postgres
+
+# Verifique se porta está disponível
+netstat -tlnp | grep 5432
+
+# Teste conexão direta
+psql -h localhost -p 5432 -U lingotlow -d lingotlow_dev
+```
+
+#### **Problema: Pool Exhausted**
+```yaml
+# Aumente o pool se necessário
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 30
+      minimum-idle: 10
+```
+
+**🎉 O Datasource é a "ponte" fundamental entre sua aplicação Java e o banco PostgreSQL!** 🌉
+
+#### **🚀 Benefits Summary:**
+
+| Layer | Technology | Primary Benefit |
+|-------|------------|-----------------|
+| **Storage** | PostgreSQL + JPA | Data Durability |
+| **Schema** | Flyway | Version Control |
+| **Processing** | Redis Streams | Performance |
+
+**🎉 Complete Enterprise Architecture!** 🚀
 
 **🎉 Congratulations!** Now you have complete control over your database schema with Flyway! 🚀
