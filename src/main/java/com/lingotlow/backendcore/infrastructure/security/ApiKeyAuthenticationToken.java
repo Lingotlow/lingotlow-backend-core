@@ -12,7 +12,7 @@ public class ApiKeyAuthenticationToken extends AbstractAuthenticationToken {
     private final String apiKey;
 
     public ApiKeyAuthenticationToken(UUID tenantId, String apiKey) {
-        super(List.of(new SimpleGrantedAuthority("ROLE_API_USER")));
+        super(List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
         this.tenantId = tenantId;
         this.apiKey = apiKey;
         setAuthenticated(true);
