@@ -33,11 +33,21 @@ public class SecurityConfig {
                         // Tenant creation endpoint - allow without authentication
                         .requestMatchers(HttpMethod.POST, "/api/tenants").permitAll()
 
-                        // API Key endpoints - require JWT authentication (ADMIN role)
-                        .requestMatchers("/api/tenants/*/api-keys/**").hasRole("ADMIN")
+                        // API Key endpoints - require API key authentication
+                        .requestMatchers("/api/tenants/*/api-keys/**").authenticated()
 
-                        // Other API endpoints - can use either JWT or API Key
-                        .requestMatchers("/api/**").hasAnyRole("ADMIN", "API_USER")
+                        // Tenant management endpoints - require API key authentication
+                        .requestMatchers(HttpMethod.GET, "/api/tenants").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/tenants/**").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/tenants/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/tenants/**").authenticated()
+
+                        // Event endpoints - require API key authentication
+                        .requestMatchers("/api/ingest/**").authenticated()
+                        .requestMatchers("/api/events/**").authenticated()
+
+                        // Any other API endpoint - require authentication
+                        .requestMatchers("/api/**").authenticated()
 
                         // Any other request
                         .anyRequest().authenticated()

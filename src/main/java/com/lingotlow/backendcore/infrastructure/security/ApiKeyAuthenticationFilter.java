@@ -37,12 +37,13 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
         if (apiKey != null) {
             try {
-                // For endpoints that don't require tenantKey in URL (like POST /api/tenants)
-                // we need to find a way to authenticate. For now, skip authentication for these cases.
-                if (tenantKey == null && request.getRequestURI().equals("/api/tenants") && "POST".equals(request.getMethod())) {
-                    // For tenant creation, skip authentication entirely and let the request proceed
-                    // The controller will handle its own authorization checks
-                    log.info("Skipping authentication for tenant creation endpoint");
+                // For endpoints that don't require tenantKey in URL (like GET /api/tenants)
+                // we need to handle authentication differently
+                if (tenantKey == null && (request.getRequestURI().equals("/api/tenants") && 
+                    ("GET".equals(request.getMethod()) || "POST".equals(request.getMethod())))) {
+                    // For tenant listing/creation, we'll need to validate differently
+                    // For now, let the request proceed and handle authorization in controller
+                    log.info("Processing tenant management endpoint without tenant context");
                     filterChain.doFilter(request, response);
                     return;
                 } else if (tenantKey != null) {
