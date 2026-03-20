@@ -271,6 +271,147 @@ class TenantServiceTest {
         verify(tenantRepository).existsByTenantKey(TENANT_KEY);
     }
 
+    @Test
+    @DisplayName("Should handle null tenant key in existence check")
+    void tenantExists_ReturnsFalse_WhenTenantKeyIsNull() {
+        // When
+        boolean result = tenantService.tenantExists(null);
+
+        // Then
+        assertThat(result).isFalse();
+        verify(tenantRepository).existsByTenantKey(null);
+    }
+
+    @Test
+    @DisplayName("Should handle empty tenant key in existence check")
+    void tenantExists_ReturnsFalse_WhenTenantKeyIsEmpty() {
+        // When
+        boolean result = tenantService.tenantExists("");
+
+        // Then
+        assertThat(result).isFalse();
+        verify(tenantRepository).existsByTenantKey("");
+    }
+
+    @Test
+    @DisplayName("Should update tenant with partial data")
+    void updateTenant_WithPartialData() {
+        // Given
+        TenantUpdateDTO partialUpdateDTO = new TenantUpdateDTO();
+        partialUpdateDTO.setName("Partially Updated Tenant");
+        // Config is not set (should remain unchanged)
+        
+        TenantEntity partiallyUpdatedTenant = createSampleTenant();
+        partiallyUpdatedTenant.setName("Partially Updated Tenant");
+        // Config should remain unchanged
+        
+        when(tenantRepository.findByTenantKey(TENANT_KEY)).thenReturn(Optional.of(sampleTenant));
+        when(tenantRepository.save(any(TenantEntity.class))).thenReturn(partiallyUpdatedTenant);
+        when(tenantMetrics.startTimer()).thenReturn(mock(io.micrometer.core.instrument.Timer.Sample.class));
+
+        // When
+        TenantEntity result = tenantService.updateTenant(TENANT_KEY, partialUpdateDTO);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.getName()).isEqualTo("Partially Updated Tenant");
+        // Config should remain as it was in the original entity
+        
+        verify(tenantRepository).findByTenantKey(TENANT_KEY);
+        verify(entityMapper).mapToUpdateEntity(partialUpdateDTO, sampleTenant);
+        verify(tenantRepository).save(sampleTenant);
+        verify(auditLogger).logTenantUpdated(eq(TENANT_KEY), eq("system"), any(Map.class));
+        verify(tenantMetrics).incrementTenantUpdate();
+    }
+
+    @Test
+    @DisplayName("Should handle tenant creation with null values")
+    void createTenant_HandlesNullValues() {
+        // Given
+        TenantRequestDTO requestWithNulls = new TenantRequestDTO();
+        requestWithNulls.setTenantKey(TENANT_KEY);
+        requestWithNulls.setName(null); // Null name
+        requestWithNulls.setConfig(null); // Null config
+        
+        when(tenantRepository.existsByTenantKey(TENANT_KEY)).thenReturn(false);
+        when(entityMapper.mapToCreateEntity(requestWithNulls)).thenReturn(sampleTenant);
+        when(tenantRepository.save(sampleTenant)).thenReturn(sampleTenant);
+        when(tenantMetrics.startTimer()).thenReturn(mock(io.micrometer.core.instrument.Timer.Sample.class));
+
+        // When
+        TenantEntity result = tenantService.createTenant(requestWithNulls);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.getTenantKey()).isEqualTo(TENANT_KEY);
+        
+        verify(tenantRepository).existsByTenantKey(TENANT_KEY);
+        verify(entityMapper).mapToCreateEntity(requestWithNulls);
+        verify(tenantRepository).save(sampleTenant);
+        verify(auditLogger).logTenantCreated(eq(TENANT_KEY), eq("system"), any(Map.class));
+        verify(tenantMetrics).incrementTenantCreate();
+    }
+
+    @Test
+    @DisplayName("Should handle repository exception during tenant creation")
+    void createTenant_HandlesRepositoryException() {
+        // Given
+        when(tenantRepository.existsByTenantKey(TENANT_KEY)).thenReturn(false);
+        when(entityMapper.mapToCreateEntity(sampleRequestDTO)).thenReturn(sampleTenant);
+        when(tenantRepository.save(sampleTenant)).thenThrow(new RuntimeException("Database error"));
+        when(tenantMetrics.startTimer()).thenReturn(mock(io.micrometer.core.instrument.Timer.Sample.class));
+
+        // When & Then
+        assertThatThrownBy(() -> tenantService.createTenant(sampleRequestDTO))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("Database error");
+        
+        verify(tenantRepository).existsByTenantKey(TENANT_KEY);
+        verify(entityMapper).mapToCreateEntity(sampleRequestDTO);
+        verify(tenantRepository).save(sampleTenant);
+        verify(tenantMetrics).recordTimer(any(), eq("create"), eq("error"));
+        verify(auditLogger, never()).logTenantCreated(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Should handle repository exception during tenant update")
+    void updateTenant_HandlesRepositoryException() {
+        // Given
+        when(tenantRepository.findByTenantKey(TENANT_KEY)).thenReturn(Optional.of(sampleTenant));
+        when(tenantRepository.save(any(TenantEntity.class))).thenThrow(new RuntimeException("Database error"));
+        when(tenantMetrics.startTimer()).thenReturn(mock(io.micrometer.core.instrument.Timer.Sample.class));
+
+        // When & Then
+        assertThatThrownBy(() -> tenantService.updateTenant(TENANT_KEY, sampleUpdateDTO))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("Database error");
+        
+        verify(tenantRepository).findByTenantKey(TENANT_KEY);
+        verify(entityMapper).mapToUpdateEntity(sampleUpdateDTO, sampleTenant);
+        verify(tenantRepository).save(sampleTenant);
+        verify(tenantMetrics).recordTimer(any(), eq("update"), eq("error"));
+        verify(auditLogger, never()).logTenantUpdated(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Should handle repository exception during tenant deletion")
+    void deleteTenant_HandlesRepositoryException() {
+        // Given
+        when(tenantRepository.findByTenantKey(TENANT_KEY)).thenReturn(Optional.of(sampleTenant));
+        doThrow(new RuntimeException("Database error")).when(tenantRepository).delete(sampleTenant);
+        when(tenantMetrics.startTimer()).thenReturn(mock(io.micrometer.core.instrument.Timer.Sample.class));
+
+        // When & Then
+        assertThatThrownBy(() -> tenantService.deleteTenant(TENANT_KEY))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("Database error");
+        
+        verify(tenantRepository).findByTenantKey(TENANT_KEY);
+        verify(tenantRepository).delete(sampleTenant);
+        verify(tenantMetrics).recordTimer(any(), eq("delete"), eq("error"));
+        verify(auditLogger, never()).logTenantDeleted(any(), any());
+    }
+
     // Helper methods
     private TenantEntity createSampleTenant() {
         TenantEntity tenant = new TenantEntity();

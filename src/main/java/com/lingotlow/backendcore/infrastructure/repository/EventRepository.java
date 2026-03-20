@@ -14,7 +14,7 @@ public interface EventRepository extends JpaRepository<EventEntity, UUID> {
 
     Optional<EventEntity> findByTenantIdAndDocumentId(UUID tenantId, String documentId);
 
-    @Query("SELECT CASE WHEN COUNT(e) > 0 THEN true ELSE false END FROM EventEntity e WHERE e.tenantId = :tenantId AND e.documentId = :documentId")
+    @Query("SELECT CASE WHEN COUNT(e) > 0 THEN true ELSE false END FROM EventEntity e WHERE e.tenantId = :tenantId AND (e.documentId = :documentId OR (e.documentId IS NULL AND :documentId IS NULL))")
     boolean existsByTenantIdAndDocumentId(@Param("tenantId") UUID tenantId, @Param("documentId") String documentId);
 
     Optional<EventEntity> findByRequestId(UUID requestId);

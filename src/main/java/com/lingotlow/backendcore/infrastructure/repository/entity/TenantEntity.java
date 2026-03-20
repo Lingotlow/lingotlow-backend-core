@@ -4,13 +4,16 @@ import jakarta.persistence.*;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 import lombok.Data;
+import org.hibernate.annotations.UuidGenerator;
 
 @Data
 @Entity
-@Table(name = "tenants", indexes = @Index(name = "idx_tenants_key", columnList = "tenantKey"))
+@Table(name = "tenants", indexes = @Index(name = "idx_tenants_key", columnList = "tenant_key"))
 public class TenantEntity {
 
-  @Id @GeneratedValue private UUID id;
+  @Id 
+  @UuidGenerator 
+  private UUID id;
 
   @Column(name = "tenant_key", unique = true, nullable = false)
   private String tenantKey;
@@ -18,7 +21,7 @@ public class TenantEntity {
   @Column(nullable = false)
   private String name;
 
-  @Column(columnDefinition = "jsonb")
+  @Column(columnDefinition = "TEXT")
   private String config;
 
   @Column(name = "created_at", nullable = false)

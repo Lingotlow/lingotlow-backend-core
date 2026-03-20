@@ -42,13 +42,21 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
                 } else {
                     log.warn("Invalid API key for tenant: {}", tenantKey);
                     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    response.getWriter().write("{\"error\":\"Invalid API key\"}");
+                    try {
+                        response.getWriter().write("{\"error\":\"Invalid API key\"}");
+                    } catch (IOException ioException) {
+                        log.error("Failed to write error response", ioException);
+                    }
                     return;
                 }
             } catch (Exception e) {
                 log.error("Error validating API key for tenant: {}", tenantKey, e);
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.getWriter().write("{\"error\":\"Authentication failed\"}");
+                try {
+                    response.getWriter().write("{\"error\":\"Authentication failed\"}");
+                } catch (IOException ioException) {
+                    log.error("Failed to write error response", ioException);
+                }
                 return;
             }
         }
@@ -67,6 +75,11 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
     private String extractTenantKey(HttpServletRequest request) {
         String path = request.getRequestURI();
         if (path.startsWith("/api/tenants/")) {
+            String[] pathParts = path.split("/");
+            if (pathParts.length >= 4) {
+                return pathParts[3];
+            }
+        } else if (path.startsWith("/api/ingest/")) {
             String[] pathParts = path.split("/");
             if (pathParts.length >= 4) {
                 return pathParts[3];

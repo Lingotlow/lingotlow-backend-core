@@ -1,13 +1,13 @@
 package com.lingotlow.backendcore.infrastructure.repository.entity;
 
 import jakarta.persistence.*;
+import java.time.OffsetDateTime;
+import java.util.UUID;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
-
-import java.time.OffsetDateTime;
-import java.util.UUID;
 
 @Data
 @Entity
@@ -18,7 +18,7 @@ import java.util.UUID;
 public class EventEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    @UuidGenerator
     @Column(name = "id", columnDefinition = "uuid")
     private UUID id;
 
@@ -38,30 +38,28 @@ public class EventEntity {
     private String status;
 
     @CreationTimestamp
-    @Column(name = "created_at", nullable = false, columnDefinition = "timestamptz")
+    @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
-    @Column(name = "received_at", columnDefinition = "timestamptz")
+    @Column(name = "received_at")
     private OffsetDateTime receivedAt;
 
     @Column(name = "s3_key")
     private String s3Key;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "payload_json", columnDefinition = "jsonb")
+    @Column(name = "payload_json", columnDefinition = "TEXT")
     private String payloadJson;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "headers", columnDefinition = "jsonb")
+    @Column(name = "headers", columnDefinition = "TEXT")
     private String headers;
 
-    @Column(name = "source_ip", columnDefinition = "inet")
+    @Column(name = "source_ip")
     private String sourceIp;
 
     @Column(name = "attempts", nullable = false)
     private Integer attempts = 0;
 
-    @Column(name = "last_attempt_at", columnDefinition = "timestamptz")
+    @Column(name = "last_attempt_at")
     private OffsetDateTime lastAttemptAt;
 
     @Column(name = "response_code")

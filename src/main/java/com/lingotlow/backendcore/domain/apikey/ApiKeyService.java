@@ -62,6 +62,11 @@ public class ApiKeyService {
     public boolean validateApiKey(UUID tenantId, String plainKey) {
         log.debug("Validating API key for tenant: {}", tenantId);
 
+        if (tenantId == null || plainKey == null || plainKey.trim().isEmpty()) {
+            log.debug("API key validation failed: tenantId or plainKey is null/empty");
+            return false;
+        }
+
         boolean isValid = apiKeyRepository.findByTenantId(tenantId).stream()
                 .anyMatch(k -> !k.isRevoked() && cryptoService.matches(plainKey, k.getKeyHash()));
 

@@ -8,6 +8,7 @@ import com.lingotlow.backendcore.domain.event.mapper.EventServiceMapper;
 import com.lingotlow.backendcore.domain.event.model.EventRequestDTO;
 import com.lingotlow.backendcore.domain.event.model.EventResponseDTO;
 import com.lingotlow.backendcore.infrastructure.logging.AuditLogger;
+import com.lingotlow.backendcore.infrastructure.queue.EventQueueProducer;
 import com.lingotlow.backendcore.infrastructure.repository.EventRepository;
 import com.lingotlow.backendcore.infrastructure.repository.TenantRepository;
 import com.lingotlow.backendcore.infrastructure.repository.entity.EventEntity;
@@ -50,6 +51,9 @@ class EventServiceTest {
     
     @Mock
     private AuditLogger auditLogger;
+
+    @Mock
+    private EventQueueProducer eventQueueProducer;
 
     @InjectMocks
     private EventService eventService;
@@ -217,6 +221,132 @@ class EventServiceTest {
         // Then
         assertThat(result).isFalse();
         verify(eventRepository).existsByTenantIdAndDocumentId(TENANT_ID, DOCUMENT_ID);
+    }
+
+    @Test
+    @DisplayName("Should create event successfully even when queue fails")
+    void createEvent_Success_EvenWhenQueueFails() {
+        // Given
+        when(tenantRepository.findByTenantKey(TENANT_KEY)).thenReturn(Optional.of(sampleTenant));
+        when(eventRepository.existsByTenantIdAndDocumentId(TENANT_ID, DOCUMENT_ID)).thenReturn(false);
+        when(eventMapper.mapToCreateEntity(any(EventRequestDTO.class), eq(TENANT_ID), any(UUID.class)))
+                .thenReturn(sampleEventEntity);
+        when(eventRepository.save(sampleEventEntity)).thenReturn(sampleEventEntity);
+        when(eventMapper.mapToResponseDTO(sampleEventEntity)).thenReturn(sampleResponseDTO);
+        
+        // Mock queue failure
+        when(eventQueueProducer.enqueueEventWithIdempotencyCheck(any())).thenReturn(false);
+
+        // When
+        EventResponseDTO result = eventService.createEvent(TENANT_KEY, sampleRequestDTO, SOURCE_IP);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.getRequestId()).isEqualTo(sampleEventEntity.getRequestId());
+        assertThat(result.getMessage()).isEqualTo("Event received successfully");
+
+        verify(tenantRepository).findByTenantKey(TENANT_KEY);
+        verify(eventRepository).save(sampleEventEntity);
+        verify(eventQueueProducer).enqueueEventWithIdempotencyCheck(any());
+        verify(auditLogger).logEventCreated(eq(TENANT_KEY), anyString(), eq(SOURCE_IP), any(Map.class));
+    }
+
+    @Test
+    @DisplayName("Should handle invalid payload gracefully")
+    void createEvent_HandlesInvalidPayload() {
+        // Given
+        EventRequestDTO requestWithInvalidPayload = createSampleRequestDTO();
+        requestWithInvalidPayload.setPayload(null); // Invalid payload
+        
+        when(tenantRepository.findByTenantKey(TENANT_KEY)).thenReturn(Optional.of(sampleTenant));
+        when(eventRepository.existsByTenantIdAndDocumentId(TENANT_ID, DOCUMENT_ID)).thenReturn(false);
+        when(eventMapper.mapToCreateEntity(any(EventRequestDTO.class), eq(TENANT_ID), any(UUID.class)))
+                .thenReturn(sampleEventEntity);
+        when(eventRepository.save(sampleEventEntity)).thenReturn(sampleEventEntity);
+        when(eventMapper.mapToResponseDTO(sampleEventEntity)).thenReturn(sampleResponseDTO);
+        when(eventQueueProducer.enqueueEventWithIdempotencyCheck(any())).thenReturn(true);
+
+        // When
+        EventResponseDTO result = eventService.createEvent(TENANT_KEY, requestWithInvalidPayload, SOURCE_IP);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.getRequestId()).isEqualTo(sampleEventEntity.getRequestId());
+        
+        verify(tenantRepository).findByTenantKey(TENANT_KEY);
+        verify(eventRepository).save(sampleEventEntity);
+        verify(eventQueueProducer).enqueueEventWithIdempotencyCheck(any());
+    }
+
+    @Test
+    @DisplayName("Should handle empty documentId for idempotency")
+    void createEvent_HandlesEmptyDocumentId() {
+        // Given
+        EventRequestDTO requestWithEmptyDocumentId = createSampleRequestDTO();
+        requestWithEmptyDocumentId.setDocumentId(""); // Empty but not null
+        
+        when(tenantRepository.findByTenantKey(TENANT_KEY)).thenReturn(Optional.of(sampleTenant));
+        when(eventRepository.existsByTenantIdAndDocumentId(TENANT_ID, "")).thenReturn(false);
+        when(eventMapper.mapToCreateEntity(any(EventRequestDTO.class), eq(TENANT_ID), any(UUID.class)))
+                .thenReturn(sampleEventEntity);
+        when(eventRepository.save(sampleEventEntity)).thenReturn(sampleEventEntity);
+        when(eventMapper.mapToResponseDTO(sampleEventEntity)).thenReturn(sampleResponseDTO);
+        when(eventQueueProducer.enqueueEventWithIdempotencyCheck(any())).thenReturn(true);
+
+        // When
+        EventResponseDTO result = eventService.createEvent(TENANT_KEY, requestWithEmptyDocumentId, SOURCE_IP);
+
+        // Then
+        assertThat(result).isNotNull();
+        verify(eventRepository).existsByTenantIdAndDocumentId(TENANT_ID, "");
+        verify(eventRepository).save(sampleEventEntity);
+    }
+
+    @Test
+    @DisplayName("Should handle null source IP")
+    void createEvent_HandlesNullSourceIp() {
+        // Given
+        when(tenantRepository.findByTenantKey(TENANT_KEY)).thenReturn(Optional.of(sampleTenant));
+        when(eventRepository.existsByTenantIdAndDocumentId(TENANT_ID, DOCUMENT_ID)).thenReturn(false);
+        when(eventMapper.mapToCreateEntity(any(EventRequestDTO.class), eq(TENANT_ID), any(UUID.class)))
+                .thenReturn(sampleEventEntity);
+        when(eventRepository.save(sampleEventEntity)).thenReturn(sampleEventEntity);
+        when(eventMapper.mapToResponseDTO(sampleEventEntity)).thenReturn(sampleResponseDTO);
+        when(eventQueueProducer.enqueueEventWithIdempotencyCheck(any())).thenReturn(true);
+
+        // When
+        EventResponseDTO result = eventService.createEvent(TENANT_KEY, sampleRequestDTO, null);
+
+        // Then
+        assertThat(result).isNotNull();
+        verify(eventRepository).save(sampleEventEntity);
+        verify(auditLogger).logEventCreated(eq(TENANT_KEY), anyString(), isNull(), any(Map.class));
+    }
+
+    @Test
+    @DisplayName("Should handle queue exception gracefully")
+    void createEvent_HandlesQueueException() {
+        // Given
+        when(tenantRepository.findByTenantKey(TENANT_KEY)).thenReturn(Optional.of(sampleTenant));
+        when(eventRepository.existsByTenantIdAndDocumentId(TENANT_ID, DOCUMENT_ID)).thenReturn(false);
+        when(eventMapper.mapToCreateEntity(any(EventRequestDTO.class), eq(TENANT_ID), any(UUID.class)))
+                .thenReturn(sampleEventEntity);
+        when(eventRepository.save(sampleEventEntity)).thenReturn(sampleEventEntity);
+        when(eventMapper.mapToResponseDTO(sampleEventEntity)).thenReturn(sampleResponseDTO);
+        
+        // Mock queue exception
+        when(eventQueueProducer.enqueueEventWithIdempotencyCheck(any()))
+                .thenThrow(new RuntimeException("Queue connection failed"));
+
+        // When
+        EventResponseDTO result = eventService.createEvent(TENANT_KEY, sampleRequestDTO, SOURCE_IP);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.getRequestId()).isEqualTo(sampleEventEntity.getRequestId());
+        
+        verify(eventQueueProducer).enqueueEventWithIdempotencyCheck(any());
+        verify(auditLogger).logEventCreated(eq(TENANT_KEY), anyString(), eq(SOURCE_IP), any(Map.class));
     }
 
     // Helper methods
