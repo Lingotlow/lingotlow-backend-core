@@ -241,11 +241,11 @@ class EventRepositoryIntegrationTest {
         event.setRequestId(reqId);
         event.setDocumentId(docId);
         event.setType("test.event");
-        event.setStatus("RECEIVED");
+        event.setStatus(EventEntity.EventStatus.PENDING);
         event.setCreatedAt(OffsetDateTime.now());
-        event.setReceivedAt(OffsetDateTime.now());
+        event.setUpdatedAt(OffsetDateTime.now());
         event.setSourceIp("192.168.1.100");
-        event.setAttempts(0);
+        event.setRetryCount(0);
         return event;
     }
 }

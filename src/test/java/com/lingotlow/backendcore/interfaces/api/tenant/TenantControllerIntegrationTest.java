@@ -1,7 +1,7 @@
 package com.lingotlow.backendcore.interfaces.api.tenant;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.lingotlow.backendcore.config.TestSecurityConfig;
+import com.lingotlow.backendcore.config.TestWebConfig;
 import com.lingotlow.backendcore.domain.tenant.TenantService;
 import com.lingotlow.backendcore.infrastructure.repository.entity.TenantEntity;
 import com.lingotlow.backendcore.interfaces.api.exception.ErrorResponse;
@@ -39,7 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Import(TestSecurityConfig.class)
+@Import(TestWebConfig.class)
 @DisplayName("TenantController Integration Tests")
 class TenantControllerIntegrationTest {
 

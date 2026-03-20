@@ -1,10 +1,10 @@
 package com.lingotlow.backendcore.infrastructure.metrics;
 
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.instrument.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+
+import java.time.Duration;
 
 @Slf4j
 @Component
@@ -15,10 +15,18 @@ public class TenantMetrics {
     private final Counter tenantDeleteCounter;
     private final Counter tenantReadCounter;
     private final Counter tenantListCounter;
+    
+    // Webhook operations counters
+    private final Counter webhooksReceivedCounter;
+    private final Counter webhooksDeliveredCounter;
+    private final Counter webhooksFailedCounter;
+    private final Counter webhooksRetriedCounter;
+    
     private final MeterRegistry meterRegistry;
 
     public TenantMetrics(MeterRegistry meterRegistry) {
         this.meterRegistry = meterRegistry;
+        
         this.tenantCreateCounter = Counter.builder("tenant.operations.create")
                 .description("Total number of tenant creation operations")
                 .register(meterRegistry);
@@ -37,6 +45,23 @@ public class TenantMetrics {
                 
         this.tenantListCounter = Counter.builder("tenant.operations.list")
                 .description("Total number of tenant list operations")
+                .register(meterRegistry);
+                
+        // Initialize webhook counters
+        this.webhooksReceivedCounter = Counter.builder("webhooks_received_total")
+                .description("Total number of webhooks received")
+                .register(meterRegistry);
+
+        this.webhooksDeliveredCounter = Counter.builder("webhooks_delivered_total")
+                .description("Total number of webhooks successfully delivered")
+                .register(meterRegistry);
+
+        this.webhooksFailedCounter = Counter.builder("webhooks_failed_total")
+                .description("Total number of webhook deliveries failed")
+                .register(meterRegistry);
+
+        this.webhooksRetriedCounter = Counter.builder("webhooks_retried_total")
+                .description("Total number of webhook retries attempted")
                 .register(meterRegistry);
     }
 
@@ -65,6 +90,27 @@ public class TenantMetrics {
         log.debug("Tenant list counter incremented");
     }
 
+    // Webhook operations
+    public void incrementWebhooksReceived() {
+        webhooksReceivedCounter.increment();
+        log.debug("Webhooks received counter incremented");
+    }
+
+    public void incrementWebhookDelivered() {
+        webhooksDeliveredCounter.increment();
+        log.debug("Webhook delivered counter incremented");
+    }
+
+    public void incrementWebhookFailed() {
+        webhooksFailedCounter.increment();
+        log.debug("Webhook failed counter incremented");
+    }
+
+    public void incrementWebhookRetried() {
+        webhooksRetriedCounter.increment();
+        log.debug("Webhook retried counter incremented");
+    }
+
     public Timer.Sample startTimer() {
         return Timer.start(meterRegistry);
     }
@@ -81,5 +127,22 @@ public class TenantMetrics {
                 .tag("operation", operation)
                 .tag("result", result)
                 .register(meterRegistry));
+    }
+    
+    // Additional metrics for monitoring
+    public void recordWebhookDeliveryTime(Duration duration, String status) {
+        Timer.builder("webhook_delivery_duration_seconds")
+                .tag("status", status)
+                .register(meterRegistry)
+                .record(duration);
+    }
+
+    // TODO: Implement queue size and active endpoints metrics when Gauge API is fixed
+    public void recordQueueSize(String queueName, int size) {
+        log.debug("Queue size for {}: {}", queueName, size);
+    }
+
+    public void recordActiveEndpoints(int count) {
+        log.debug("Active endpoints: {}", count);
     }
 }

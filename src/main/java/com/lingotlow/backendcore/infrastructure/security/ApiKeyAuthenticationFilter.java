@@ -55,7 +55,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
                         ApiKeyAuthenticationToken authentication = new ApiKeyAuthenticationToken(tenantId, apiKey);
                         SecurityContextHolder.getContext().setAuthentication(authentication);
-                        log.info("Authentication set with authorities: {}", authentication.getAuthorities());
+                        log.debug("Authentication set for tenant: {} with API key", tenantKey);
                     } else {
                         log.warn("Invalid API key for tenant: {}", tenantKey);
                         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

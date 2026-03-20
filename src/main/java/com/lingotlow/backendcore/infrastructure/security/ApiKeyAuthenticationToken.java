@@ -3,6 +3,7 @@ package com.lingotlow.backendcore.infrastructure.security;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -12,7 +13,7 @@ public class ApiKeyAuthenticationToken extends AbstractAuthenticationToken {
     private final String apiKey;
 
     public ApiKeyAuthenticationToken(UUID tenantId, String apiKey) {
-        super(List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+        super(Collections.emptyList()); // No authorities for API key authentication
         this.tenantId = tenantId;
         this.apiKey = apiKey;
         setAuthenticated(true);

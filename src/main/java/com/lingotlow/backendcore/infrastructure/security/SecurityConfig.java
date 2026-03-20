@@ -3,11 +3,14 @@ package com.lingotlow.backendcore.infrastructure.security;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.http.HttpMethod;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -17,6 +20,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final ApiKeyAuthenticationFilter apiKeyAuthenticationFilter;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -30,30 +34,31 @@ public class SecurityConfig {
                         .requestMatchers("/swagger-ui/**").permitAll()
                         .requestMatchers("/v3/api-docs/**").permitAll()
                         
-                        // Tenant creation endpoint - allow without authentication
-                        .requestMatchers(HttpMethod.POST, "/api/tenants").permitAll()
+                        // Tenant creation endpoint - allow without authentication (MVP)
+                        .requestMatchers("POST", "/api/tenants").permitAll()
 
-                        // API Key endpoints - require API key authentication
-                        .requestMatchers("/api/tenants/*/api-keys/**").authenticated()
-
-                        // Tenant management endpoints - require API key authentication
-                        .requestMatchers(HttpMethod.GET, "/api/tenants").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/tenants/**").authenticated()
-                        .requestMatchers(HttpMethod.PUT, "/api/tenants/**").authenticated()
-                        .requestMatchers(HttpMethod.DELETE, "/api/tenants/**").authenticated()
-
-                        // Event endpoints - require API key authentication
+                        // Event ingest endpoints - require API key authentication
                         .requestMatchers("/api/ingest/**").authenticated()
-                        .requestMatchers("/api/events/**").authenticated()
 
-                        // Any other API endpoint - require authentication
-                        .requestMatchers("/api/**").authenticated()
+                        // All other API endpoints - require JWT authentication (admin)
+                        .requestMatchers("/api/**").hasRole("ADMIN")
 
                         // Any other request
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(apiKeyAuthenticationFilter, JwtAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 }

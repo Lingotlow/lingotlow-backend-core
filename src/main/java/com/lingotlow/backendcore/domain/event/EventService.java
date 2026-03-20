@@ -65,6 +65,8 @@ public class EventService {
         // Create event entity
         EventEntity eventEntity = eventMapper.mapToCreateEntity(request, tenant.getId(), requestId);
         eventEntity.setSourceIp(sourceIp);
+        eventEntity.setStatus(EventEntity.EventStatus.PENDING);
+        eventEntity.setRetryCount(0);
 
         // Save event
         EventEntity savedEvent = eventRepository.save(eventEntity);

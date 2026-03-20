@@ -19,12 +19,17 @@ public abstract class EventServiceMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "tenantId", source = "tenantId")
     @Mapping(target = "requestId", source = "requestId")
-    @Mapping(target = "status", constant = "RECEIVED")
+    @Mapping(target = "status", constant = "PENDING")
     @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "receivedAt", ignore = true)
-    @Mapping(target = "attempts", constant = "0")
-    @Mapping(target = "payloadJson", expression = "java(convertToJson(request))")
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "retryCount", constant = "0")
+    @Mapping(target = "failureReason", ignore = true)
+    @Mapping(target = "metadata", expression = "java(convertMetadataToJson(request))")
+    @Mapping(target = "payload", expression = "java(convertToJson(request))")
     @Mapping(target = "headers", expression = "java(convertHeadersToJson(request))")
+    @Mapping(target = "sourceIp", ignore = true)
+    @Mapping(target = "deliveredAt", ignore = true)
+    @Mapping(target = "lastRetryAt", ignore = true)
     public abstract EventEntity mapToCreateEntity(EventRequestDTO request, UUID tenantId, UUID requestId);
 
     @Mapping(target = "requestId", source = "entity.requestId")
@@ -36,6 +41,22 @@ public abstract class EventServiceMapper {
     protected String convertToJson(EventRequestDTO request) {
         if (request.getPayload() == null) return null;
         return "{\"payload\":\"" + request.getPayload() + "\"}";
+    }
+
+    protected String convertMetadataToJson(EventRequestDTO request) {
+        if (request.getMetadata() == null || request.getMetadata().isEmpty()) return null;
+        try {
+            StringBuilder json = new StringBuilder("{");
+            request.getMetadata().forEach((key, value) -> 
+                json.append("\"").append(key).append("\":\"").append(value).append("\","));
+            if (json.length() > 1) {
+                json.setLength(json.length() - 1); // Remove last comma
+            }
+            json.append("}");
+            return json.toString();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     protected String convertHeadersToJson(EventRequestDTO request) {

@@ -378,18 +378,18 @@ class EventServiceTest {
         ReflectionTestUtils.setField(event, "requestId", UUID.randomUUID());
         event.setDocumentId(DOCUMENT_ID);
         event.setType(EVENT_TYPE);
-        event.setStatus("RECEIVED");
+        event.setStatus(EventEntity.EventStatus.PENDING);
         event.setCreatedAt(OffsetDateTime.now());
-        event.setReceivedAt(OffsetDateTime.now());
+        event.setUpdatedAt(OffsetDateTime.now());
         event.setSourceIp(SOURCE_IP);
-        event.setAttempts(0);
+        event.setRetryCount(0);
         return event;
     }
 
     private EventResponseDTO createSampleResponseDTO() {
         EventResponseDTO dto = new EventResponseDTO();
         dto.setRequestId(sampleEventEntity.getRequestId());
-        dto.setStatus("RECEIVED");
+        dto.setStatus("PENDING");
         dto.setTimestamp(sampleEventEntity.getCreatedAt());
         dto.setMessage("Event received successfully");
         return dto;
