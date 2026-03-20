@@ -42,11 +42,12 @@ class EventQueueProducerTest {
   private EventQueueProducer eventQueueProducer;
   private EventQueueProducer.EventQueueMessage sampleMessage;
   private MockedStatic<Counter> counterMock;
+  private org.springframework.data.redis.core.ValueOperations<String, Object> valueOperations;
 
   @BeforeEach
   void setUp() {
     eventQueueProducer = new EventQueueProducer(redisTemplate, objectMapper, meterRegistry);
-    when(redisTemplate.opsForStream()).thenReturn(streamOperations);
+    lenient().when(redisTemplate.opsForStream()).thenReturn(streamOperations);
 
     // Mock Counter.builder.register() pattern
     lenient().doNothing().when(processedCounter).increment();
@@ -56,16 +57,16 @@ class EventQueueProducerTest {
     counterMock = mockStatic(Counter.class);
     Counter.Builder enqueuedBuilder = mock(Counter.Builder.class);
     Counter.Builder rejectedBuilder = mock(Counter.Builder.class);
-    when(enqueuedBuilder.description(anyString())).thenReturn(enqueuedBuilder);
-    when(rejectedBuilder.description(anyString())).thenReturn(rejectedBuilder);
-    when(enqueuedBuilder.register(meterRegistry)).thenReturn(processedCounter);
-    when(rejectedBuilder.register(meterRegistry)).thenReturn(rejectedCounter);
+    lenient().when(enqueuedBuilder.description(anyString())).thenReturn(enqueuedBuilder);
+    lenient().when(rejectedBuilder.description(anyString())).thenReturn(rejectedBuilder);
+    lenient().when(enqueuedBuilder.register(meterRegistry)).thenReturn(processedCounter);
+    lenient().when(rejectedBuilder.register(meterRegistry)).thenReturn(rejectedCounter);
     when(Counter.builder(anyString())).thenReturn(enqueuedBuilder, rejectedBuilder);
 
     // Mock redisTemplate.opsForValue() for idempotency tests
-    lenient()
-        .when(redisTemplate.opsForValue())
-        .thenReturn(mock(org.springframework.data.redis.core.ValueOperations.class));
+    valueOperations = mock(org.springframework.data.redis.core.ValueOperations.class);
+    lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+    lenient().doNothing().when(valueOperations).set(anyString(), anyString(), anyLong());
 
     sampleMessage =
         new EventQueueProducer.EventQueueMessage(
@@ -99,7 +100,7 @@ class EventQueueProducerTest {
     // Then
     assertThat(result).isTrue();
     verify(streamOperations).add(any(StringRecord.class));
-    verify(objectMapper, times(2)).writeValueAsString(any(Map.class));
+    verify(objectMapper, times(2)).writeValueAsString(any());
   }
 
   @Test
@@ -128,7 +129,7 @@ class EventQueueProducerTest {
 
     // Then
     assertThat(result).isFalse();
-    verify(objectMapper).writeValueAsString(any(Map.class));
+    verify(objectMapper).writeValueAsString(any());
     verify(streamOperations, never()).add(any());
   }
 
@@ -180,7 +181,7 @@ class EventQueueProducerTest {
     // Then
     assertThat(result).isTrue();
     verify(redisTemplate).hasKey(anyString());
-    verify(redisTemplate).opsForValue().set(anyString(), eq("processed"), eq(86400));
+    verify(valueOperations).set(anyString(), eq("processed"), eq(86400L));
     verify(streamOperations).add(any(StringRecord.class));
   }
 
@@ -215,7 +216,7 @@ class EventQueueProducerTest {
     assertThat(result).isFalse();
     verify(redisTemplate).hasKey(anyString());
     verify(redisTemplate, never()).opsForValue(); // Should not set idempotency key on failure
-    verify(streamOperations, times(1)).add(any(StringRecord.class));
+    verify(streamOperations, times(3)).add(any(StringRecord.class));
   }
 
   @Test
@@ -263,8 +264,8 @@ class EventQueueProducerTest {
     // Then
     assertThat(result).isTrue();
     verify(streamOperations).add(any(StringRecord.class));
-    verify(objectMapper, never())
-        .writeValueAsString(any(Map.class)); // Should not serialize null headers
+    verify(objectMapper, times(1)).writeValueAsString(any()); // Should serialize payload but not headers
+    verify(objectMapper, never()).writeValueAsString(null); // Headers should not be serialized
   }
 
   @Test

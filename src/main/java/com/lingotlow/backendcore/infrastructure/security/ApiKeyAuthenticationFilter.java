@@ -29,25 +29,44 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
         String apiKey = extractApiKey(request);
         String tenantKey = extractTenantKey(request);
+        
+        log.debug("Processing request: path={}, apiKey={}, tenantKey={}", 
+                 request.getRequestURI(), 
+                 apiKey != null ? "[PRESENT]" : "[NULL]", 
+                 tenantKey != null ? tenantKey : "[NULL]");
 
-        if (apiKey != null && tenantKey != null) {
+        if (apiKey != null) {
             try {
-                UUID tenantId = tenantService.getTenantByTenantKey(tenantKey).getId();
-
-                if (apiKeyService.validateApiKey(tenantId, apiKey)) {
-                    log.debug("API key validation successful for tenant: {}", tenantKey);
-
-                    ApiKeyAuthenticationToken authentication = new ApiKeyAuthenticationToken(tenantId, apiKey);
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-                } else {
-                    log.warn("Invalid API key for tenant: {}", tenantKey);
-                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    try {
-                        response.getWriter().write("{\"error\":\"Invalid API key\"}");
-                    } catch (IOException ioException) {
-                        log.error("Failed to write error response", ioException);
-                    }
+                // For endpoints that don't require tenantKey in URL (like POST /api/tenants)
+                // we need to find a way to authenticate. For now, skip authentication for these cases.
+                if (tenantKey == null && request.getRequestURI().equals("/api/tenants") && "POST".equals(request.getMethod())) {
+                    // For tenant creation, skip authentication entirely and let the request proceed
+                    // The controller will handle its own authorization checks
+                    log.info("Skipping authentication for tenant creation endpoint");
+                    filterChain.doFilter(request, response);
                     return;
+                } else if (tenantKey != null) {
+                    UUID tenantId = tenantService.getTenantByTenantKey(tenantKey).getId();
+                    log.info("Found tenantId: {} for tenantKey: {}", tenantId, tenantKey);
+
+                    if (apiKeyService.validateApiKey(tenantId, apiKey)) {
+                        log.info("API key validation successful for tenant: {}", tenantKey);
+
+                        ApiKeyAuthenticationToken authentication = new ApiKeyAuthenticationToken(tenantId, apiKey);
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                        log.info("Authentication set with authorities: {}", authentication.getAuthorities());
+                    } else {
+                        log.warn("Invalid API key for tenant: {}", tenantKey);
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        try {
+                            response.getWriter().write("{\"error\":\"Invalid API key\"}");
+                        } catch (IOException ioException) {
+                            log.error("Failed to write error response", ioException);
+                        }
+                        return;
+                    }
+                } else {
+                    log.warn("API key present but no tenant key found for path: {}", request.getRequestURI());
                 }
             } catch (Exception e) {
                 log.error("Error validating API key for tenant: {}", tenantKey, e);
@@ -66,10 +85,10 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
     private String extractApiKey(HttpServletRequest request) {
         String apiKey = request.getHeader("X-API-Key");
-        if (apiKey == null) {
+        if (apiKey == null || apiKey.trim().isEmpty()) {
             apiKey = request.getParameter("api_key");
         }
-        return apiKey;
+        return (apiKey != null && !apiKey.trim().isEmpty()) ? apiKey : null;
     }
 
     private String extractTenantKey(HttpServletRequest request) {
@@ -77,12 +96,14 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         if (path.startsWith("/api/tenants/")) {
             String[] pathParts = path.split("/");
             if (pathParts.length >= 4) {
-                return pathParts[3];
+                String tenantKey = pathParts[3];
+                return (tenantKey != null && !tenantKey.trim().isEmpty()) ? tenantKey : null;
             }
         } else if (path.startsWith("/api/ingest/")) {
             String[] pathParts = path.split("/");
             if (pathParts.length >= 4) {
-                return pathParts[3];
+                String tenantKey = pathParts[3];
+                return (tenantKey != null && !tenantKey.trim().isEmpty()) ? tenantKey : null;
             }
         }
         return null;

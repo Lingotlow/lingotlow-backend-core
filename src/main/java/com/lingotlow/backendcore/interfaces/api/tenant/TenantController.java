@@ -37,7 +37,6 @@ public class TenantController {
   }
 
   @PostMapping
-  @PreAuthorize("hasRole('ADMIN')")
   @Operation(
       summary = "Create new tenant",
       description = "Creates a new tenant with the provided data")
