@@ -5,7 +5,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
 
 @SpringBootApplication
-@ComponentScan(basePackages = {"com.lingotlow.backendcore"})
+@ComponentScan(
+    basePackages = {"com.lingotlow.backendcore", "com.lingotlow.backendcore.interfaces.api"})
 public class BackendCoreApplication {
   public static void main(String[] args) {
     SpringApplication.run(BackendCoreApplication.class, args);

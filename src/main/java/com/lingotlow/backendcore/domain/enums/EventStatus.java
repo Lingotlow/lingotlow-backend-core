@@ -4,5 +4,6 @@ public enum EventStatus {
   PENDING,
   DELIVERED,
   FAILED,
-  RETRY
+  RETRY,
+  RECEIVED,
 }

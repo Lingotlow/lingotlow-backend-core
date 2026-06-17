@@ -4,6 +4,7 @@ import com.lingotlow.backendcore.domain.apikey.ApiKeyService;
 import com.lingotlow.backendcore.domain.apikey.model.ApiKey;
 import com.lingotlow.backendcore.interfaces.dto.ApiKeyRequest;
 import com.lingotlow.backendcore.interfaces.dto.ApiKeyResponse;
+import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
@@ -20,6 +21,11 @@ import org.springframework.web.bind.annotation.*;
 public class ApiKeyController {
 
     private final ApiKeyService apiKeyService;
+
+    @PostConstruct
+    public void init() {
+        log.info("🚀🚀🚀 ApiKeyController INITIALIZED at /api/admin/tenants/{tenantKey}/apikeys 🚀🚀🚀");
+    }
 
     @PostMapping
     public ResponseEntity<ApiKeyResponse> generateApiKey(
