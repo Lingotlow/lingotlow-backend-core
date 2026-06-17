@@ -19,63 +19,49 @@ spring:
       hibernate:
         format_sql: true
         use_sql_comments: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
 
   flyway:
-    enabled: false  # Desabilitar Flyway por enquanto
-    baseline-on-migrate: true
+    enabled: false
 
-  # Redis desabilitado temporariamente
-  # redis:
-  #   host: localhost
-  #   port: 6379
-  #   timeout: 2000ms
-  #   lettuce:
-  #     pool:
-  #       max-active: 8
-  #       max-idle: 8
-  #       min-idle: 0
+  redis:
+    host: localhost
+    port: 6379
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
 
-# Logging for Development
+  main:
+    allow-circular-references: true
+    allow-bean-definition-overriding: true
+
+  web:
+    resources:
+      add-mappings: false
+
 logging:
   level:
     com.lingotlow: DEBUG
     org.springframework.web: DEBUG
     org.springframework.security: DEBUG
     org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
-    org.springframework.jdbc.core: DEBUG
 
-# Server Configuration for Development
 server:
   port: 8080
+  servlet:
+    context-path: /api
 
-# Security Configuration for Development (desabilitado temporariamente)
+springdoc:
+  api-docs:
+    path: /docs
+  swagger-ui:
+    path: /swagger-ui.html
+
 app:
   security:
     jwt:
-      secret: developmentSecretKeyForLocalTestingOnly
+      secret: developmentSecretKeyForLocalTestingOnlyWithAtLeast512Bits1234567890123456789012345678901234567890
       expiration: 86400000
-    admin:
-      default-email: admin@lingotlow.com
-      default-password: admin123
-
-  # Storage Configuration for Development (desabilitado)
-  storage:
-    s3:
-      enabled: false
-
-  # Queue Configuration for Development (desabilitado)
-  queue:
-    redis:
-      enabled: false
-
-  # Rate Limit Configuration for Development
-  rate-limit:
-    enabled: false
-
-  # Feature Flags for Development
-  features:
-    circuit-breaker: false
-    s3-storage: false
-    stripe-billing: false
-    idempotency: true

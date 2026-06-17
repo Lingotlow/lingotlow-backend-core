@@ -1,20 +1,16 @@
 package com.lingotlow.backendcore.infrastructure.repository;
 
-import com.lingotlow.backendcore.infrastructure.repository.entity.ApiKeyEntity;
+import com.lingotlow.backendcore.domain.apikey.model.ApiKey;
+import com.lingotlow.backendcore.domain.tenant.model.Tenant;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
-import java.util.UUID;
-
 @Repository
-public interface ApiKeyRepository extends JpaRepository<ApiKeyEntity, UUID> {
-
-    @Query("SELECT ak FROM ApiKeyEntity ak WHERE ak.tenantId = :tenantId AND ak.revoked = false ORDER BY ak.createdAt DESC")
-    List<ApiKeyEntity> findAllActiveByTenant(@Param("tenantId") UUID tenantId);
-
-    @Query("SELECT ak FROM ApiKeyEntity ak WHERE ak.tenantId = :tenantId")
-    List<ApiKeyEntity> findByTenantId(@Param("tenantId") UUID tenantId);
+public interface ApiKeyRepository extends JpaRepository<ApiKey, UUID> {
+    Optional<ApiKey> findByKeyHash(String keyHash);
+    List<ApiKey> findByTenantAndRevokedFalse(Tenant tenant);
+    boolean existsByTenantAndKeyHash(Tenant tenant, String keyHash);
 }

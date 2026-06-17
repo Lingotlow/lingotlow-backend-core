@@ -1,14 +1,13 @@
 package com.lingotlow.backendcore.infrastructure.repository;
 
-import com.lingotlow.backendcore.domain.tenant.model.Tenant;
+import com.lingotlow.backendcore.domain.user.model.AppUser;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface TenantRepository extends JpaRepository<Tenant, UUID> {
-  Optional<Tenant> findByTenantKey(String tenantKey);
-
-  boolean existsByTenantKey(String tenantKey);
+public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
+    Optional<AppUser> findByEmail(String email);
+    boolean existsByEmail(String email);
 }
