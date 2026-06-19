@@ -10,6 +10,16 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface EndpointRepository extends JpaRepository<Endpoint, UUID> {
+
+    // Buscar endpoints por tenant
+    List<Endpoint> findByTenant(Tenant tenant);
+
+    // Buscar endpoints ativos por tenant
     List<Endpoint> findByTenantAndActiveTrue(Tenant tenant);
+
+    // Buscar endpoint por tenant e ID
     Optional<Endpoint> findByTenantAndId(Tenant tenant, UUID id);
+
+    // Buscar endpoints ativos por tenant para o worker
+    List<Endpoint> findByTenantAndActiveTrueOrderByCreatedAtAsc(Tenant tenant);
 }
