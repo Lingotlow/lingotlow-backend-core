@@ -15,43 +15,43 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/admin/tenants/{tenantKey}/apikeys")
+@RequestMapping("/admin/tenants/{tenantKey}/apikeys")
 @RequiredArgsConstructor
 @Slf4j
 public class ApiKeyController {
 
-    private final ApiKeyService apiKeyService;
+  private final ApiKeyService apiKeyService;
 
-    @PostConstruct
-    public void init() {
-        log.info("🚀🚀🚀 ApiKeyController INITIALIZED at /api/admin/tenants/{tenantKey}/apikeys 🚀🚀🚀");
-    }
+  @PostConstruct
+  public void init() {
+    log.info(
+        "🚀🚀🚀 ApiKeyController INITIALIZED at /api/admin/tenants/{tenantKey}/apikeys 🚀🚀🚀");
+  }
 
-    @PostMapping
-    public ResponseEntity<ApiKeyResponse> generateApiKey(
-            @PathVariable String tenantKey,
-            @Valid @RequestBody ApiKeyRequest request) {
-        log.info("Generating API Key for tenant: {}", tenantKey);
-        String rawKey = apiKeyService.generateApiKey(tenantKey);
-        return ResponseEntity.ok(new ApiKeyResponse(rawKey));
-    }
+  @PostMapping
+  public ResponseEntity<ApiKeyResponse> generateApiKey(
+      @PathVariable String tenantKey, @Valid @RequestBody ApiKeyRequest request) {
+    log.info("Generating API Key for tenant: {}", tenantKey);
+    String rawKey = apiKeyService.generateApiKey(tenantKey);
+    return ResponseEntity.ok(new ApiKeyResponse(rawKey));
+  }
 
-    @GetMapping
-    public ResponseEntity<List<ApiKeyResponse>> listApiKeys(@PathVariable String tenantKey) {
-        log.info("Listing API Keys for tenant: {}", tenantKey);
-        List<ApiKey> apiKeys = apiKeyService.getApiKeysByTenant(tenantKey);
-        List<ApiKeyResponse> responses = apiKeys.stream()
-                .map(key -> new ApiKeyResponse(key.getId(), key.getPrefix(), key.getCreatedAt()))
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(responses);
-    }
+  @GetMapping
+  public ResponseEntity<List<ApiKeyResponse>> listApiKeys(@PathVariable String tenantKey) {
+    log.info("Listing API Keys for tenant: {}", tenantKey);
+    List<ApiKey> apiKeys = apiKeyService.getApiKeysByTenant(tenantKey);
+    List<ApiKeyResponse> responses =
+        apiKeys.stream()
+            .map(key -> new ApiKeyResponse(key.getId(), key.getPrefix(), key.getCreatedAt()))
+            .collect(Collectors.toList());
+    return ResponseEntity.ok(responses);
+  }
 
-    @DeleteMapping("/{keyId}")
-    public ResponseEntity<Void> revokeApiKey(
-            @PathVariable String tenantKey,
-            @PathVariable UUID keyId) {
-        log.info("Revoking API Key for tenant: {}", tenantKey);
-        apiKeyService.revokeApiKey(keyId, tenantKey);
-        return ResponseEntity.noContent().build();
-    }
+  @DeleteMapping("/{keyId}")
+  public ResponseEntity<Void> revokeApiKey(
+      @PathVariable String tenantKey, @PathVariable UUID keyId) {
+    log.info("Revoking API Key for tenant: {}", tenantKey);
+    apiKeyService.revokeApiKey(keyId, tenantKey);
+    return ResponseEntity.noContent().build();
+  }
 }

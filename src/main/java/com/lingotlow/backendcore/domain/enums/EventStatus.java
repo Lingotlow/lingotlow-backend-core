@@ -6,4 +6,5 @@ public enum EventStatus {
   FAILED,
   RETRY,
   RECEIVED,
+  DLQ,
 }

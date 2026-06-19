@@ -3,6 +3,7 @@ package com.lingotlow.backendcore.interfaces.api.ingestion;
 import com.lingotlow.backendcore.infrastructure.service.IngestionService;
 import com.lingotlow.backendcore.interfaces.dto.IngestRequest;
 import com.lingotlow.backendcore.interfaces.dto.IngestResponse;
+import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
 import java.time.Instant;
 import java.util.UUID;
@@ -13,12 +14,17 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/ingest")
+@RequestMapping("/ingest")
 @RequiredArgsConstructor
 @Slf4j
 public class IngestionController {
 
   private final IngestionService ingestionService;
+
+  @PostConstruct
+  public void init() {
+    log.info("✅✅✅ IngestionController INITIALIZED at /api/ingest ✅✅✅");
+  }
 
   @PostMapping("/{tenantKey}")
   public ResponseEntity<IngestResponse> ingest(
@@ -29,7 +35,6 @@ public class IngestionController {
 
     log.info("Ingest request received for tenant: {}", tenantKey);
 
-    // Validar API Key
     if (apiKey == null || apiKey.isEmpty()) {
       log.warn("Missing API Key for tenant: {}", tenantKey);
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -38,14 +43,12 @@ public class IngestionController {
 
     try {
       UUID requestId = ingestionService.ingestWebhook(tenantKey, apiKey, request, idempotencyKey);
-
       return ResponseEntity.ok(
           IngestResponse.builder()
               .requestId(requestId)
               .status("RECEIVED")
               .receivedAt(Instant.now())
               .build());
-
     } catch (IllegalArgumentException e) {
       log.warn("Tenant not found: {}", tenantKey);
       return ResponseEntity.status(HttpStatus.NOT_FOUND)

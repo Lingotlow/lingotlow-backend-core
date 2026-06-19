@@ -2,7 +2,8 @@
 
 ## Overview
 
-This Lingotlow backend-core project uses Java 21 + Spring Boot and depends on external services to run locally, which we start with Docker Compose.
+This Lingotlow backend-core project uses Java 21 + Spring Boot and depends on external services to run locally, which we
+start with Docker Compose.
 
 ## Dependencies Stack
 
@@ -20,37 +21,49 @@ The Spring Boot backend will be executed locally via IntelliJ.
 ### 1. Install Docker and Docker Compose
 
 ### On Linux LMDE 6 (Debian based):
+
 ##### Update packages
+
     sudo apt update && sudo apt upgrade -y
 
 ##### Install necessary packages to add repositories
+
     sudo apt install -y ca-certificates curl gnupg lsb-release
 
 ##### Create key for official Docker repository
+
     sudo mkdir -p /etc/apt/keyrings
 
 ##### Add Docker GPG key
+
     curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 
 ##### Add Docker repository
+
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
 ##### Install Docker
+
     sudo apt update
     sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
 ##### Start and enable Docker
+
     sudo systemctl start docker
     sudo systemctl enable docker
 
 ##### Add user to docker group (to avoid sudo)
+
     sudo usermod -aG docker $USER
 
 ##### Apply group changes (logout and login or run)
+
     newgrp docker
 
 ### On Mac:
+
 ##### Install Docker Desktop
+
     brew install --cask docker
 
 ---
@@ -58,6 +71,7 @@ The Spring Boot backend will be executed locally via IntelliJ.
 ## Quick Start
 
 ### 1. Start Dependencies
+
 ```bash
 # Start PostgreSQL, Redis, and PgAdmin
 docker-compose up -d
@@ -67,6 +81,7 @@ docker-compose ps
 ```
 
 ### 2. Database Setup
+
 ```bash
 # Access PostgreSQL
 docker exec -it lingotlow-postgres psql -U lingotlow -d lingotlow_dev
@@ -78,6 +93,7 @@ docker exec -it lingotlow-postgres psql -U lingotlow -d lingotlow_dev
 ```
 
 ### 3. Run Application
+
 ```bash
 # Using Maven
 ./mvnw spring-boot:run -Dspring.profiles.active=local
@@ -88,6 +104,7 @@ docker exec -it lingotlow-postgres psql -U lingotlow -d lingotlow_dev
 ```
 
 ### 4. Access Endpoints
+
 ```bash
 # Health check
 curl http://localhost:8080/actuator/health
@@ -136,24 +153,26 @@ src/
 - **default**: Production/staging configuration
 
 ### Database Configuration
+
 ```yaml
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/lingotlow_dev
     username: lingotlow
     password: lingotlow_dev
-  
+
   flyway:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
-  
+
   jpa:
     hibernate:
       ddl-auto: validate
 ```
 
 ### Redis Configuration
+
 ```yaml
 spring:
   redis:
@@ -166,6 +185,7 @@ spring:
 ## API Endpoints
 
 ### Tenant Management
+
 - `GET /api/tenants` - List all tenants
 - `POST /api/tenants` - Create new tenant
 - `GET /api/tenants/{tenantKey}` - Get tenant details
@@ -173,13 +193,16 @@ spring:
 - `DELETE /api/tenants/{tenantKey}` - Delete tenant
 
 ### API Key Management
+
 - `POST /api/api-keys/{tenantKey}` - Create API key
 - `GET /api/api-keys/{tenantKey}` - List API keys
 
 ### Event Ingestion
+
 - `POST /api/ingest/{tenantKey}` - Ingest event
 
 ### Health & Monitoring
+
 - `GET /actuator/health` - Application health
 - `GET /actuator/metrics` - Application metrics
 - `GET /actuator/prometheus` - Prometheus metrics
@@ -189,24 +212,27 @@ spring:
 ## Development
 
 ### Code Style
+
 - Java 21 features
 - Domain-Driven Design (DDD)
 - Clean Architecture principles
 - SOLID principles
 
 ### Testing
+
 ```bash
 # Run all tests
-./mvnw test
+./mvnw docker-compose.yml
 
-# Run specific test class
-./mvnw test -Dtest=EventServiceTest
+# Run specific docker-compose.yml class
+./mvnw docker-compose.yml -Dtest=EventServiceTest
 
 # Run integration tests
-./mvnw test -Dtest=EventControllerIntegrationTest
+./mvnw docker-compose.yml -Dtest=EventControllerIntegrationTest
 ```
 
 ### Database Migrations
+
 ```bash
 # Check migration status
 ./mvnw flyway:info
@@ -223,6 +249,7 @@ spring:
 ## Environment Variables
 
 ### Optional Environment Variables
+
 ```bash
 # Override default configuration
 export SPRING_PROFILES_ACTIVE=local
@@ -243,6 +270,7 @@ export REDIS_PORT=6379
 ### Common Issues
 
 #### Docker Permission Denied
+
 ```bash
 # Fix Docker permissions
 sudo usermod -aG docker $USER
@@ -250,6 +278,7 @@ newgrp docker
 ```
 
 #### Port Already in Use
+
 ```bash
 # Check what's using port 5432
 lsof -i :5432
@@ -259,6 +288,7 @@ kill -9 <PID>
 ```
 
 #### Database Connection Failed
+
 ```bash
 # Check PostgreSQL container
 docker logs lingotlow-postgres
@@ -268,6 +298,7 @@ docker-compose restart
 ```
 
 #### Application Won't Start
+
 ```bash
 # Check application logs
 ./mvnw spring-boot:run -Dspring.profiles.active=local -Dlogging.level.root=DEBUG
@@ -281,16 +312,19 @@ docker-compose restart
 ## Monitoring & Observability
 
 ### Health Endpoints
+
 - Application health: `/actuator/health`
 - Database health: Included in main health check
 - Redis health: Included in main health check
 
 ### Metrics
+
 - JVM metrics: `/actuator/metrics/jvm.*`
 - HTTP metrics: `/actuator/metrics/http.server.requests`
 - Database metrics: `/actuator/metrics/data.*`
 
 ### Logging
+
 - Application logs: Console output
 - Audit logs: Structured JSON format
 - Database logs: Docker container logs
@@ -300,11 +334,13 @@ docker-compose restart
 ## Security
 
 ### Authentication
+
 - API Key based authentication
 - JWT tokens for internal services
 - Tenant-based access control
 
 ### Data Protection
+
 - Passwords encrypted in database
 - API keys hashed
 - HTTPS in production
@@ -314,15 +350,18 @@ docker-compose restart
 ## Performance
 
 ### Database Optimization
+
 - Indexed columns for frequent queries
 - Connection pooling configured
 - Flyway migrations for schema management
 
 ### Caching
+
 - Redis for session management
 - Application-level caching for frequent data
 
 ### Monitoring
+
 - Response time tracking
 - Error rate monitoring
 - Resource usage metrics
@@ -339,6 +378,7 @@ docker-compose restart
 6. Submit pull request
 
 ### Code Review Checklist
+
 - [ ] Code follows project style
 - [ ] Tests are included
 - [ ] Documentation updated
@@ -356,6 +396,7 @@ This project is proprietary software of Lingotlow.
 ## Support
 
 For technical support:
+
 - Create issue in repository
 - Contact development team
 - Check documentation first
