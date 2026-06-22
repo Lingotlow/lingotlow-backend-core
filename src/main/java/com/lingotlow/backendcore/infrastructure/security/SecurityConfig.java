@@ -1,8 +1,6 @@
 package com.lingotlow.backendcore.infrastructure.security;
 
 import com.lingotlow.backendcore.domain.apikey.ApiKeyService;
-import java.util.Arrays;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,6 +18,9 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -53,6 +54,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Public endpoints - PERMIT ALL
                         .requestMatchers("/auth/login").permitAll()
+                        .requestMatchers("/auth/signup").permitAll()
                         .requestMatchers("/ingest/**").permitAll()
                         .requestMatchers("/test-ingest/**").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
